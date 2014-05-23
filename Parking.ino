@@ -91,7 +91,7 @@ void loop() {
   }
 
   // Ignore motion away, with a little slop factor thrown in.
-  if (cm >= last_distance - 2) {
+  if (cm >= last_distance - 5) {
     idle_count++;
     last_distance = max(last_distance, cm);
     return;
@@ -100,7 +100,6 @@ void loop() {
   // Ignore null detects.
   if (cm == 0) {
     idle_count++;
-    last_distance = MAX_DIST;
     return;
   }
 
