@@ -15,8 +15,8 @@
 #define ECHO_PIN 7
 
 // Minimum trigger distances in cm.
-#define YELLOW_DIST 30
-#define GREEN_DIST 100
+#define YELLOW_DIST 40
+#define GREEN_DIST 150
 #define MAX_DIST 500
 
 // 8000000/256/1000
