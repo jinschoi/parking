@@ -86,6 +86,13 @@ int ping() {
   return cm;
 }
 
+int ping_and_blink(int pin) {
+  int cm = ping();
+  digitalWrite(pin, HIGH);
+  delay(25);
+  digitalWrite(pin, LOW);
+}
+
 void loop() {
   if (state == WAITING) {
 #ifdef DEBUG
@@ -94,7 +101,7 @@ void loop() {
     Sleepy::loseSomeTime(2000);
 #endif
 
-    ping();
+    ping_and_blink(GREEN);
     if (cm == 0) return; // Keep waiting.
 
     // Got a return.
@@ -116,7 +123,7 @@ void loop() {
       return;
     }
 
-    ping();
+    ping_and_blink(RED);
     if (cm == 0) {
       no_detect_count++;
       return;
