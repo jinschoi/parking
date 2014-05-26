@@ -1026,7 +1026,7 @@ design rules under a new name.</description>
 <element name="Y1" library="SparkFun-FreqCtrl" package="RESONATOR-SMD" value="8MHZ" x="6.35" y="22.225" rot="R270">
 <attribute name="PROD_ID" value="XTAL-08895" x="-52.07" y="-26.035" size="1.778" layer="27" rot="R270" display="off"/>
 </element>
-<element name="C3" library="SparkFun-Passives" package="0805" value="0.1uF" x="21.59" y="25.4"/>
+<element name="C3" library="SparkFun-Passives" package="0805" value="0.1uF" x="21.59" y="25.4" rot="R90"/>
 <element name="J1" library="SparkFun" package="1X06" value="FTDI Basic" x="7.62" y="38.1"/>
 <element name="R2" library="SparkFun-Passives" package="0805" value="10K" x="13.97" y="33.02" rot="R270"/>
 <element name="R4" library="SparkFun-Passives" package="0805" value="180" x="21.59" y="27.94"/>
@@ -1065,9 +1065,6 @@ design rules under a new name.</description>
 <contactref element="C4" pad="2"/>
 <contactref element="J4" pad="2"/>
 <contactref element="J3" pad="4"/>
-<wire x1="18.2626" y1="25.8" x2="20.085" y2="25.8" width="0.254" layer="1"/>
-<wire x1="20.085" y1="25.8" x2="20.535" y2="26.25" width="0.254" layer="1"/>
-<wire x1="20.535" y1="26.25" x2="22.49" y2="25.4" width="0.254" layer="1"/>
 <wire x1="8.89" y1="11.875" x2="8.89" y2="10.795" width="0.254" layer="1"/>
 <wire x1="8.89" y1="10.795" x2="9.155" y2="10.53" width="0.254" layer="1"/>
 <wire x1="9.155" y1="10.53" x2="9.155" y2="9.525" width="0.254" layer="1"/>
@@ -1288,8 +1285,8 @@ design rules under a new name.</description>
 <signal name="N$4">
 <contactref element="U1" pad="20"/>
 <contactref element="C3" pad="1"/>
-<wire x1="18.2626" y1="25" x2="20.29" y2="25" width="0.254" layer="1"/>
-<wire x1="20.29" y1="25" x2="20.69" y2="25.4" width="0.254" layer="1"/>
+<wire x1="18.2626" y1="25" x2="21.09" y2="25" width="0.254" layer="1"/>
+<wire x1="21.09" y1="25" x2="21.59" y2="24.5" width="0.254" layer="1"/>
 </signal>
 <signal name="VIN">
 <contactref element="IC1" pad="3"/>
