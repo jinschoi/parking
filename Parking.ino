@@ -70,8 +70,12 @@ void blink(int pin, int times)
   }
 }
 
-void report_vin() {
+void read_vin() {
   vin = analogRead(VIN_PIN) / 1023.0 * 5.0;
+}
+
+void report_vin() {
+  read_vin();
 #ifdef DEBUG
   Serial.print("VIN: ");
   Serial.println(vin);
@@ -169,7 +173,7 @@ void loop() {
     // Each cell is < 1V.
     blink(RED, 3);
     sleep(10000);
-    vin = digitalRead(VIN_PIN);
+    read_vin();
     return;
   }
 #endif  
@@ -177,7 +181,7 @@ void loop() {
   if (state == WAITING) {
     sleep(2000);
 
-    vin = digitalRead(VIN_PIN);
+    read_vin();
     ping_and_blink(GREEN);
 
     if (cm == 0) return; // Keep waiting.
@@ -275,7 +279,7 @@ void loop() {
       if (range == RED) digitalWrite(RED, LOW);
       ticks = ticks_for_dist(cm);
 #ifdef DEBUG
-      Serial.println("ticks: ");
+      Serial.print("ticks: ");
       Serial.println(ticks);
 #endif    
 
