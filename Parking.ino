@@ -1,3 +1,4 @@
+// Must have DISABLE_ONE_PIN set to true! Not the default: edit NewPing.h to set it.
 #include <NewPing.h>
 #include <JeeLib.h>
 #include <avr/interrupt.h>
@@ -16,13 +17,17 @@
 #define PARKED 2
 
 // Pins for SR04.
-#define TRIGGER_PIN 8
+#define PING_ENABLE 6
 #define ECHO_PIN 7
+#define TRIGGER_PIN 8
 
 // Minimum trigger distances in cm.
 #define YELLOW_DIST 40
 #define GREEN_DIST 150
 #define MAX_DIST 500
+
+// Input voltage pin
+#define VIN_PIN A6
 
 // 8000000/256/1000
 #define TICKS_PER_MS 31.25
@@ -33,6 +38,12 @@
 
 // #define DEBUG
 
+#ifdef DEBUG
+  #define sleep delay
+#else
+  #define sleep Sleepy::loseSomeTime
+#endif
+
 NewPing sonar(TRIGGER_PIN, ECHO_PIN, MAX_DIST);
 uint16_t ticks = 0xffff;
 int state;
@@ -41,9 +52,37 @@ int last_distance;
 int idle_count;
 int no_detect_count;
 int cm;
+float vin;
+
+
+// Return the requested number of digits of the mantissa as a char. Only works for digits up to 2.
+char decToInt(float f, int digits) {
+  return round(abs(f - (int) f) * pow(10, digits));
+}
+
+void blink(int pin, int times)
+{
+  for (int i = 0; i < times; i++) {
+    digitalWrite(pin, HIGH);
+    sleep(25);
+    digitalWrite(pin, LOW);
+    sleep(200);
+  }
+}
+
+void report_vin() {
+  vin = analogRead(VIN_PIN) / 1023.0 * 5.0;
+#ifdef DEBUG
+  Serial.print("VIN: ");
+  Serial.println(vin);
+#endif
+
+  blink(RED, vin);
+  sleep(200);
+  blink(GREEN, decToInt(vin, 1));
+}
 
 void setup() {
-
 #ifdef DEBUG
   Serial.begin(115200);
 #endif
@@ -51,6 +90,9 @@ void setup() {
   pinMode(RED, OUTPUT);
   pinMode(YELLOW, OUTPUT);
   pinMode(GREEN, OUTPUT);
+  pinMode(PING_ENABLE, OUTPUT);
+
+  report_vin();
 
   // Set up TIMER1.
   TCCR1A = B00000000;
@@ -69,7 +111,33 @@ inline uint16_t ticks_for_dist(int cm) {
   return FASTEST_FLASH_RATE + (SLOWEST_FLASH_RATE - FASTEST_FLASH_RATE) * (cm - YELLOW_DIST) / (GREEN_DIST - YELLOW_DIST);
 }
 
+void enable_sr04() {
+  // Reset the trigger pin mode to output.
+  pinMode(TRIGGER_PIN, OUTPUT);
+
+  // Connect GND to the sensor.
+  digitalWrite(PING_ENABLE, HIGH);
+
+  // Various data sheets exhort you connect GND before VCC, but never say what will happen if you don't.
+  // What appears to happen is that the echo pin stays high, and you get a short read on the first ping.
+  // A sacrificial ping after a short delay after power up appears to make everything happy again.
+  delay(20);
+  sonar.ping();
+
+  // Enforce a settling delay.
+  delay(29);
+}
+
+void disable_sr04() {
+  digitalWrite(PING_ENABLE, LOW);
+  // As well as disconnecting GND with a low side MOSFET, we have to disconnect
+  // the trigger pin, or the sensor will find ground through it and remain powered up.
+  pinMode(TRIGGER_PIN, INPUT);
+}
+
 int ping() {
+  enable_sr04();
+
   int uS = sonar.ping_median(3);
   cm = sonar.convert_cm(uS);
 
@@ -83,25 +151,35 @@ int ping() {
   Serial.println(idle_count);
 #endif
 
+  disable_sr04();
   return cm;
 }
 
 int ping_and_blink(int pin) {
-  int cm = ping();
+  ping();
   digitalWrite(pin, HIGH);
-  delay(25);
+  sleep(25);
   digitalWrite(pin, LOW);
 }
 
 void loop() {
-  if (state == WAITING) {
-#ifdef DEBUG
-    delay(2000);
-#else
-    Sleepy::loseSomeTime(2000);
-#endif
+#ifndef DEBUG
+  // Check battery status. vin is set on report_vin at setup and in the PARKED state, and during the WAITING loop.
+  if (vin < 2.0) {
+    // Each cell is < 1V.
+    blink(RED, 3);
+    sleep(10000);
+    vin = digitalRead(VIN_PIN);
+    return;
+  }
+#endif  
 
+  if (state == WAITING) {
+    sleep(2000);
+
+    vin = digitalRead(VIN_PIN);
     ping_and_blink(GREEN);
+
     if (cm == 0) return; // Keep waiting.
 
     // Got a return.
@@ -110,11 +188,7 @@ void loop() {
   }
 
   if (state == PARKED) {
-#ifdef DEBUG
-    delay(60000);
-#else
-    Sleepy::loseSomeTime(60000);
-#endif
+    sleep(60000);
 
     // If it's been 5 minutes since we've detected a car, go to the waiting state.
     if (no_detect_count > 5) {
@@ -123,7 +197,10 @@ void loop() {
       return;
     }
 
-    ping_and_blink(RED);
+    // ping_and_blink(RED);
+    report_vin();
+    ping();
+
     if (cm == 0) {
       no_detect_count++;
       return;
@@ -152,7 +229,7 @@ void loop() {
       return;
     }
 
-    if (idle_count > 300) { // 30s of no forward events; we're parked.
+    if (idle_count > 200) { // 20s of no forward events; we're parked.
       state = PARKED;
       no_detect_count = 0;
       idle_count = 0;
