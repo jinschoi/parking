@@ -188,6 +188,7 @@ void loop() {
 
     // Got a return.
     state = PARKING;
+    last_distance = MAX_DIST;
     return;
   }
 
@@ -233,7 +234,7 @@ void loop() {
       return;
     }
 
-    if (idle_count > 200) { // 20s of no forward events; we're parked.
+    if (idle_count > 100) { // 10s of no forward events; we're parked.
       state = PARKED;
       no_detect_count = 0;
       idle_count = 0;
