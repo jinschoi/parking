@@ -1,6 +1,7 @@
 // Must have DISABLE_ONE_PIN set to true! Not the default: edit NewPing.h to set it.
 #include <NewPing.h>
 #include <JeeLib.h>
+#include <EEPROM.h>
 #include <avr/interrupt.h>
 
 // Pins.
@@ -25,6 +26,9 @@
 #define YELLOW_DIST 40
 #define GREEN_DIST 150
 #define MAX_DIST 500
+
+// Push button input pin
+#define BUTTON A3
 
 // Input voltage pin
 #define VIN_PIN A6
@@ -53,7 +57,6 @@ int idle_count;
 int no_detect_count;
 int cm;
 float vin;
-
 
 // Return the requested number of digits of the mantissa as a char. Only works for digits up to 2.
 char decToInt(float f, int digits) {
@@ -86,6 +89,9 @@ void report_vin() {
   blink(GREEN, decToInt(vin, 1));
 }
 
+int lastButtonState = HIGH;
+int yellowDist;
+
 void setup() {
 #ifdef DEBUG
   Serial.begin(115200);
@@ -95,6 +101,13 @@ void setup() {
   pinMode(YELLOW, OUTPUT);
   pinMode(GREEN, OUTPUT);
   pinMode(PING_ENABLE, OUTPUT);
+
+  pinMode(BUTTON, INPUT);
+  digitalWrite(BUTTON, HIGH);
+
+  yellowDist = EEPROM.read(0);
+  if (yellowDist == 255)
+    yellowDist = YELLOW_DIST;
 
   report_vin();
 
@@ -112,7 +125,7 @@ void setup() {
 
 // Calculate a flash rate based on the given distance. Only called for yellow state.
 inline uint16_t ticks_for_dist(int cm) {
-  return FASTEST_FLASH_RATE + (SLOWEST_FLASH_RATE - FASTEST_FLASH_RATE) * (cm - YELLOW_DIST) / (GREEN_DIST - YELLOW_DIST);
+  return FASTEST_FLASH_RATE + (SLOWEST_FLASH_RATE - FASTEST_FLASH_RATE) * (cm - yellowDist) / (GREEN_DIST - yellowDist);
 }
 
 void enable_sr04() {
@@ -166,10 +179,18 @@ int ping_and_blink(int pin) {
   digitalWrite(pin, LOW);
 }
 
+void updateYellowDist() {
+  int cm = ping();
+  if (cm > 0) {
+    EEPROM.write(0, cm);
+    yellowDist = cm;
+  }
+}
+
 void loop() {
 #ifndef DEBUG
   // Check battery status. vin is set on report_vin at setup and in the PARKED state, and during the WAITING loop.
-  if (vin < 2.0) {
+  if (vin < 2.0 && 0) {
     // Each cell is < 1V.
     blink(RED, 3);
     sleep(10000);
@@ -178,8 +199,14 @@ void loop() {
   }
 #endif  
 
+  int buttonState = digitalRead(BUTTON);
+  if (lastButtonState == HIGH && buttonState == LOW) {
+    updateYellowDist();
+  }
+  lastButtonState = buttonState;
+
   if (state == WAITING) {
-    sleep(2000);
+    sleep(1000);
 
     read_vin();
     ping_and_blink(GREEN);
@@ -253,7 +280,7 @@ void loop() {
     no_detect_count = 0;
 
     // Only take into account forward motion for purposes of idle detection.
-    if (cm >= last_distance - 5) { // 5 cm slop factor.
+    if (cm >= last_distance - 3) { // 3 cm slop factor.
       last_distance = max(last_distance, cm);
       idle_count++;
     } else {
@@ -268,7 +295,7 @@ void loop() {
         range = GREEN;
         digitalWrite(GREEN, HIGH);
       }
-    } else if (cm < YELLOW_DIST) { // RED
+    } else if (cm < yellowDist) { // RED
       if (range == YELLOW) stop_blinking();
       if (range == GREEN) digitalWrite(GREEN, LOW);
       if (range != RED) {
